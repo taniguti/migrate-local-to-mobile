@@ -1,4 +1,3 @@
-
 migrate_local_to_AD_user.sh
-
+fixchown.sh
 a.sh
