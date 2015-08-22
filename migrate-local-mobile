@@ -1,22 +1,85 @@
 #!/bin/sh
 
+usage(){
+   cat << _HELP
+
+use: 
+  $0 -l Local_Account_name -d Active_Directory_Account_name [-a]
+ 
+  -l: Local Account name to migrate. ex) taniguti
+  -d: Active Directory Accout to which use mobile account. ex) takanori.taniguchi
+      if you don't set -d, just create mobile account for the user given with -l.
+  -a: if you add this switch, mobile user account will have administrator privileges on local computer.
+ 
+_HELP
+}
+
 if [ $# -eq 0 ]; then
-        echo "$0 Local_Account_name Active_Directory_Account_name [admin]"
-        echo "Set 'nobody' to 2nd arg, just create a mobile account for 1st arg."
-        exit 0
+    usage
+    exit 0
 fi
 
-TAERGET_USER=`echo $1   | tr [:upper:] [:lower:] `
-DIRECTORY_USER=`echo $2 | tr [:upper:] [:lower:] `
-BE_ADMIN=`echo $3       | tr [:upper:] [:lower:] `
+while getopts ":al:d:" SW
+do
+    case $SW in
+    a)
+        IS_ADMIN="YES"
+        ;;
+    d)
+        DIRECTORY_USER=`echo $OPTARG | tr [:upper:] [:lower:] `
+        ;;
+    l)
+        TAERGET_USER=`echo $OPTARG | tr [:upper:] [:lower:] `
+        ;;
+    :)
+        usage
+        exit 1
+        ;;
+     \?)
+        usage
+        exit 1
+        ;;
+  esac
+done
+
+if [ ${TAERGET_USER="X"} = "X" ]; then
+        usage
+        exit 1
+fi
 
 if [ ${DIRECTORY_USER:-"nobody"} = "nobody" ]; then
         DIRECTORY_USER=$TAERGET_USER
         DO_MIGRATE="NO"
 fi
 
-if [ ${BE_ADMIN:-X} = "admin" ]; then
-        IS_ADMIN="YES"
-else
-        IS_ADMIN="NO"
+ADDOMAIN="`/usr/libexec/PlistBuddy -c 'print modules:session:0:options:dsAttrTypeStandard\:CSPSearchPath:1:' /Library/Preferences/OpenDirectory/Configurations/Search.plist`"
+
+BOUND=`echo "$ADDOMAIN" | awk -F/ '$2 == "Active Directory" {print $0}' | wc -l`
+if [ $BOUND -ne 1 ] ; then
+   echo "This Mac must be bound to Active Directory. It seems to not joind Active Directory domain."
+   echo "ADDOMAIN: ${ADDOMAIN:-none}"
+   exit 1 
 fi
+
+dscl "$ADDOMAIN" -list /Users/$DIRECTORY_USER > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+    echo "$DIRECTORY_USER is not found in $ADDOMAIN."
+    exit 1
+fi
+
+if [ ${DO_MIGRATE:-YES} != NO ]; then
+    dscl . -list /Users/$TAERGET_USER > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo "$TAERGET_USER is not found in Local computer."
+        exit 1
+    fi
+else
+    dscl . -list /Users/$DIRECTORY_USER > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        echo "$DIRECTORY_USER was found in Local computer."
+        echo "Can not create $DIRECTORY_USER as mobile account due to accout conflict."
+        exit 1
+    fi
+fi
+
+
