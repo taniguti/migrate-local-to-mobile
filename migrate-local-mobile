@@ -82,4 +82,19 @@ else
     fi
 fi
 
+if [ ${DO_MIGRATE:-YES} != NO ]; then
+    dscl . -delete /Users/$TAERGET_USER
+    mv /Users/$TAERGET_USER /Users/${TAERGET_USER}.backup
+fi
 
+/System/Library/CoreServices/ManagedClient.app/Contents/Resources/createmobileaccount -n $DIRECTORY_USER > /dev/null 2>&1
+
+rm -rf /Users/$DIRECTORY_USER 
+
+mv /Users/${TAERGET_USER}.backup /Users/$DIRECTORY_USER 
+
+chown -R $DIRECTORY_USER /Users/$DIRECTORY_USER 
+
+if [ ${IS_ADMIN:-X} = "YES" ]; then
+    dseditgroup -o edit -n . -a $DIRECTORY_USER admin
+fi
