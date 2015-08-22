@@ -1,0 +1,22 @@
+#!/bin/sh
+
+if [ $# -eq 0 ]; then
+        echo "$0 Local_Account_name Active_Directory_Account_name [admin]"
+        echo "Set 'nobody' to 2nd arg, just create a mobile account for 1st arg."
+        exit 0
+fi
+
+TAERGET_USER=`echo $1   | tr [:upper:] [:lower:] `
+DIRECTORY_USER=`echo $2 | tr [:upper:] [:lower:] `
+BE_ADMIN=`echo $3       | tr [:upper:] [:lower:] `
+
+if [ ${DIRECTORY_USER:-"nobody"} = "nobody" ]; then
+        DIRECTORY_USER=$TAERGET_USER
+        DO_MIGRATE="NO"
+fi
+
+if [ ${BE_ADMIN:-X} = "admin" ]; then
+        IS_ADMIN="YES"
+else
+        IS_ADMIN="NO"
+fi
